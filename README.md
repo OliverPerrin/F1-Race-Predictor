@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.2%2B-orange.svg)](https://scikit-learn.org/)
 [![FastF1](https://img.shields.io/badge/FastF1-3.0%2B-red.svg)](https://docs.fastf1.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GNU GPLv3](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/gpl-3-0)
 
 **An end-to-end machine learning pipeline predicting Formula 1 race outcomes based on qualifying performance, driver standings, and constructor data.**
 
@@ -234,7 +234,7 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## 📜 License
 
-This project is licensed under the GNU 3.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU GPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -264,10 +264,6 @@ Questions or suggestions? Feel free to reach out!
 - **Twitter:** [@FrontR6](https://twitter.com/frontr6)
 
 ---
-
-<p align="center">
-  <i>Built with ❤️ and a passion for Formula 1</i>
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/github/stars/OliverPerrin/f1-race-predictor?style=social" alt="GitHub stars">
