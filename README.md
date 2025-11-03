@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.2%2B-orange.svg)](https://scikit-learn.org/)
 [![FastF1](https://img.shields.io/badge/FastF1-3.0%2B-red.svg)](https://docs.fastf1.dev/)
-[![License: GNU GPLv3](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/gpl-3-0)
+[![License: GNU GPLv3](https://img.shields.io/badge/License-GNU%20GPLv3-yellow.svg)](https://opensource.org/license/gpl-3-0)
 
 **An end-to-end machine learning pipeline predicting Formula 1 race outcomes based on qualifying performance, driver standings, and constructor data.**
 
