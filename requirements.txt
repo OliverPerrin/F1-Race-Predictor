@@ -8,3 +8,4 @@ fastf1>=3.0.0
 xgboost>=1.7.0
 jupyter>=1.0.0
 streamlit>=1.20.0
+requests>=2.31.0
