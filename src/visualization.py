@@ -17,6 +17,11 @@ st.set_page_config(page_title="F1 Qualifying Predictor", layout="wide")
 # Adopt a clean seaborn theme so every chart is readable by default.
 sns.set_theme(style="whitegrid")
 
+BASE_DIR = os.path.dirname(__file__)
+SAMPLE_DATA_DIR = os.path.join(BASE_DIR, "sample_data")
+FALLBACK_DATA_PATH = os.path.join(SAMPLE_DATA_DIR, "processed_data.csv")
+FALLBACK_RESULTS_PATH = os.path.join(SAMPLE_DATA_DIR, "results.csv")
+
 
 # --------- Cached helpers ---------
 @st.cache_data(show_spinner=True)
@@ -31,6 +36,18 @@ def load_model(path: str):
     if os.path.exists(path):
         return joblib.load(path)
     return None
+
+# This is just to get it working with streamlit cloud
+def resolve_existing_path(primary: str, fallback: str | None = None, *, required: bool) -> tuple[str | None, bool]:
+    """Return the first existing path and flag whether a bundled fallback was used."""
+    if primary and os.path.exists(primary):
+        return primary, False
+    if fallback and os.path.exists(fallback):
+        return fallback, True
+    if required:
+        missing = primary or fallback or ""
+        raise FileNotFoundError(f"Required file missing: {missing}")
+    return None, False
 
 
 def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
@@ -105,9 +122,9 @@ def derive_driver_labels(df: pd.DataFrame) -> pd.Series:
 
 
 @st.cache_data(show_spinner=True)
-def load_prediction_results(path: str) -> pd.DataFrame:
+def load_prediction_results(path: str | None) -> pd.DataFrame:
     """Load stored model predictions for computing offline diagnostics."""
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         return pd.read_csv(path)
     return pd.DataFrame(columns=["target", "actual", "predicted"])
 
@@ -162,7 +179,24 @@ DATA_PATH = "data/processed/processed_data.csv"
 PREDICTIONS_DIR = "data/predictions"
 RESULTS_PATH = "data/predictions/results.csv"
 
-df = load_dataset(DATA_PATH)
+try:
+    dataset_path, used_fallback_dataset = resolve_existing_path(
+        DATA_PATH, FALLBACK_DATA_PATH, required=True
+    )
+except FileNotFoundError:
+    st.error(
+        "No processed dataset is available. Run `python src/preprocessing.py` to regenerate it "
+        "or bundle a CSV at `src/sample_data/processed_data.csv` before deploying."
+    )
+    st.stop()
+
+df = load_dataset(dataset_path)
+if used_fallback_dataset:
+    st.info(
+        "Bundled sample dataset loaded (streamlit cloud fallback). Regenerate `data/processed/processed_data.csv` "
+        "for the latest results."
+    )
+
 position_model = load_model(os.path.join(PREDICTIONS_DIR, "position_regressor.pkl"))
 q3_model = load_model(os.path.join(PREDICTIONS_DIR, "q3_classifier.pkl"))
 top10_model = load_model(os.path.join(PREDICTIONS_DIR, "top10_classifier.pkl"))
@@ -419,7 +453,15 @@ st.markdown("---")
 st.header("Model insights")
 
 # Pull cached test-set predictions so we can surface error metrics without rerunning training
-results_df = load_prediction_results(RESULTS_PATH)
+results_path, used_fallback_results = resolve_existing_path(
+    RESULTS_PATH, FALLBACK_RESULTS_PATH, required=False
+)
+results_df = load_prediction_results(results_path)
+
+if used_fallback_results and not results_df.empty:
+    st.caption(
+        "Bundled sample prediction metrics loaded. Train locally and redeploy to refresh model diagnostics."
+    )
 
 if results_df.empty:
     st.info(
