@@ -1,5 +1,6 @@
 # F1 Race Predictor
 
+[![Streamlit App](https://img.shields.io/badge/Live%20Demo-Streamlit-blue?logo=streamlit)]([https://your-app-name.streamlit.app](https://f1-race-predictor-oliverperrin.streamlit.app))
 An end-to-end workflow for analysing Formula 1 qualifying sessions, training machine-learning models, and presenting the results through an interactive Streamlit dashboard. The project pulls recent race data with FastF1, prepares a modelling dataset, trains regressors/classifiers, and surfaces the outputs in a way that is easy to demo.
 
 ## Project Overview
