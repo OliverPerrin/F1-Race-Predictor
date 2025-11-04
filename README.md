@@ -1,271 +1,104 @@
-# 🏎️ F1 Race Predictor
+# F1 Race Predictor
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.2%2B-orange.svg)](https://scikit-learn.org/)
-[![FastF1](https://img.shields.io/badge/FastF1-3.0%2B-red.svg)](https://docs.fastf1.dev/)
-[![License: GNU GPLv3](https://img.shields.io/badge/License-GNU%20GPLv3-yellow.svg)](https://opensource.org/license/gpl-3-0)
+An end-to-end workflow for analysing Formula 1 qualifying sessions, training machine-learning models, and presenting the results through an interactive Streamlit dashboard. The project pulls recent race data with FastF1, prepares a modelling dataset, trains regressors/classifiers, and surfaces the outputs in a way that is easy to demo.
 
-**An end-to-end machine learning pipeline predicting Formula 1 race outcomes based on qualifying performance, driver standings, and constructor data.**
+## Project Overview
+- Processes qualifying and race results for recent F1 seasons using FastF1 and Ergast data.
+- Builds a clean feature set covering lap times, session deltas, team and driver context, and engineered targets.
+- Trains three models:
+  - Random Forest regressor to estimate finishing position.
+  - Logistic regression to predict who reaches Q3.
+  - Logistic regression to predict top-ten qualifiers.
+- Ships a Streamlit application (`src/visualization.py`) for slicing historic weekends, simulating upcoming rounds, and reviewing model diagnostics.
 
-Designed and developed by [OliverPerrin](https://github.com/OliverPerrin)
+## Highlights
+- **Scenario planning:** simulate an upcoming weekend by averaging each driver's recent form and generating fresh predictions.
+- **Model insights:** review scatter plots, residual distributions, and confusion matrices directly inside the dashboard.
+- **Offline artefacts:** every training run serialises the models and stores test-set predictions so the analytics can be shared without re-training.
 
----
+## Key Results
+Metrics below are calculated from the latest `data/predictions/results.csv` artefact (176 test-set samples).
 
-## 📋 Project Overview
+| Target | Metric | Score |
+| ------ | ------ | ----- |
+| Position regression | Mean absolute error | 1.78 grid places |
+| Position regression | Root mean squared error | 2.28 grid places |
+| Position regression | Mean bias (predicted - actual) | -0.10 |
+| Q3 classification | Accuracy | 93.8% |
+| Q3 classification | Precision | 88.2% |
+| Q3 classification | Recall | 100% |
+| Q3 classification | F1 score | 93.7% |
+| Top-ten classification | Accuracy | 92.6% |
+| Top-ten classification | Precision | 88.2% |
+| Top-ten classification | Recall | 97.6% |
+| Top-ten classification | F1 score | 92.7% |
 
-Formula 1 racing combines human skill, engineering excellence, and strategic decision-making. This project leverages machine learning to predict race outcomes by analyzing historical qualifying data, driver performance metrics, and constructor standings from the 2022-2023 F1 seasons.
+## Tech Stack
+- **Python 3.11**
+- **Data & ML:** pandas, numpy, scikit-learn, joblib
+- **Data ingestion:** FastF1, Ergast (via `requests`)
+- **Visualisation & UI:** Streamlit, seaborn, matplotlib
 
-**Key Objectives:**
-- Predict top-10 race finishes with high accuracy
-- Identify the most influential factors in race performance
-- Compare multiple ML algorithms for classification tasks
-- Visualize model performance and feature importance
-
----
-
-## 🎯 Key Results
-
-- **Best Model:** Random Forest Classifier
-- **Accuracy:** 78.3%
-- **Precision:** 76.8%
-- **F1 Score:** 0.77
-- **Top Predictive Features:** 
-  1. Qualifying position (43% importance)
-  2. Constructor championship standing (22% importance)
-  3. Driver championship points (18% importance)
-
-> *"Random Forest outperformed baseline models by 15%, demonstrating that qualifying position and constructor performance are the strongest predictors of race outcomes. The model successfully generalizes across different circuits and weather conditions."*
-
----
-
-## 🚀 Features
-
-- **Automated Data Pipeline:** Fetches live F1 data using FastF1 API
-- **Feature Engineering:** Creates meaningful features from raw telemetry and standings
-- **Multi-Model Comparison:** Evaluates Logistic Regression, Random Forest, and XGBoost
-- **Professional Visualizations:** Confusion matrices, model comparisons, and feature importance plots
-- **Reproducible Results:** Consistent train-test splits with random seed control
-
----
-
-## 🛠️ Tech Stack
-
-**Languages & Frameworks:**
-- Python 3.8+
-- scikit-learn (ML models & evaluation)
-- Pandas & NumPy (data manipulation)
-- Matplotlib & Seaborn (visualization)
-
-**APIs & Libraries:**
-- FastF1 (F1 telemetry data)
-- XGBoost (gradient boosting)
-
-**Tools:**
-- Jupyter Notebooks (exploration)
-- Git & GitHub (version control)
-
----
-
-## 📊 Visualizations
-
-### Model Performance Comparison
-![Model Comparison](results/plots/model_comparison.png)
-*Random Forest and XGBoost significantly outperform the baseline Logistic Regression model.*
-
-### Confusion Matrix
-![Confusion Matrix](results/plots/confusion_matrix.png)
-*The model correctly predicts top-10 finishes with 78% accuracy, with minimal false positives.*
-
-### Feature Importance
-![Feature Importance](results/plots/feature_importance.png)
-*Qualifying position dominates predictive power, followed by constructor and driver standings.*
-
----
-
-## 🚦 Getting Started
-
+## Getting Started
 ### Prerequisites
-- Python 3.8 or higher
-- pip package manager
-- Virtual environment (recommended)
+- Python 3.10+ (3.12 recommended)
+- pip
+- (Optional) virtual environment tool such as `venv` or `conda`
 
 ### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/OliverPerrin/f1-race-predictor.git
-cd f1-race-predictor
+# Clone the project
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+cd F1-Race-Predictor
+
+# Create and activate a virtual environment (optional but recommended)
+python3 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Quick Start
+### Typical Workflow
+1. **Collect fresh data** (optional if `data/raw` already exists):
+   ```bash
+   python src/data_collection.py
+   ```
+2. **Preprocess and engineer features:**
+   ```bash
+   python src/preprocessing.py
+   ```
+3. **Train the models and generate metrics:**
+   ```bash
+   python src/model.py
+   ```
+   - Saves trained models to `data/predictions/`.
+   - Writes hold-out predictions to `data/predictions/results.csv` for later analysis.
+4. **Launch the dashboard:** see next section.
 
+## Using the Streamlit Dashboard
 ```bash
-# Step 1: Collect F1 data
-python src/data_collection.py
-
-# Step 2: Preprocess and engineer features
-python src/preprocessing.py
-
-# Step 3: Train models and evaluate
-python src/model.py
-
-# Step 4: Generate visualizations
-python src/visualization.py
+streamlit run src/visualization.py
 ```
+The app includes three main areas:
+- **Historic weekends:** filter by season and race, review predicted finishing order, and inspect probabilities for Q3 / top-ten appearances.
+- **Upcoming weekend simulation:** specify a future race, choose a look-back window, and the app will estimate results based on each driver's recent form.
+- **Model insights tab:** compare actual vs predicted positions, explore residual distributions, and inspect confusion matrices for the classifiers.
 
-### Optional: Run Interactive UI
+## Repository Components
+- `src/data_collection.py` – pulls race and qualifying sessions via FastF1 with retry logic and caching.
+- `src/preprocessing.py` – merges raw data, converts time columns, creates engineered targets, and outputs `data/processed/processed_data.csv`.
+- `src/model.py` – trains the regression/classification models and stores artefacts/metrics.
+- `src/visualization.py` – Streamlit dashboard powering the interactive experience.
+- `data/` – raw downloads, processed dataset, and prediction artefacts.
+- `results/` – generated metrics or additional analyses.
 
-```bash
-streamlit run app.py
-```
+## Contributing
+Issues, ideas, and pull requests are welcome. Please open a discussion or PR if you would like to extend the models, add new visualisations, or integrate additional data sources.
 
-Visit `http://localhost:8501` to interact with the model through a web interface.
+## License
+This project is distributed under the terms of the GNU GPL-3.0 license. See `LICENSE` for details.
 
----
+## Contact
+Created by [Oliver Perrin](https://github.com/OliverPerrin). For questions or collaboration, feel free to reach out on GitHub or LinkedIn.
 
-## 📁 Project Structure
-
-```
-f1-race-predictor/
-├── README.md                      # Project documentation
-├── requirements.txt               # Python dependencies
-├── .gitignore                     # Git ignore rules
-│
-├── data/
-│   ├── raw/                       # Raw F1 data from API
-│   └── processed/                 # Cleaned and engineered features
-│
-├── notebooks/
-│   └── exploration.ipynb          # Exploratory data analysis
-│
-├── src/
-│   ├── __init__.py
-│   ├── data_collection.py         # FastF1 API data fetching
-│   ├── preprocessing.py           # Feature engineering & cleaning
-│   ├── model.py                   # Model training & evaluation
-│   └── visualization.py           # Plot generation
-│
-├── models/
-│   └── random_forest_model.pkl    # Saved best model
-│
-├── results/
-│   ├── plots/                     # Generated visualizations
-│   │   ├── model_comparison.png
-│   │   ├── confusion_matrix.png
-│   │   └── feature_importance.png
-│   └── metrics.txt                # Model performance metrics
-│
-└── app.py                         # Streamlit web interface (optional)
-```
-
----
-
-## 🧪 Methodology
-
-### 1. Data Collection
-- Sourced from **FastF1 API** and **Ergast F1 API**
-- Focused on **2022-2023 seasons** for recent relevance
-- Collected ~400 race records with 15+ features per record
-
-### 2. Feature Engineering
-Created predictive features including:
-- Qualifying position (normalized)
-- Grid position adjustments
-- Driver championship points at race time
-- Constructor championship standing
-- Circuit-specific historical performance
-- Weather conditions (dry/wet)
-
-### 3. Model Training
-Trained three classification models:
-1. **Logistic Regression** (baseline)
-2. **Random Forest** (best performer)
-3. **XGBoost** (close second)
-
-Used **80/20 train-test split** with stratified sampling.
-
-### 4. Evaluation Metrics
-- Accuracy
-- Precision, Recall, F1 Score
-- Confusion Matrix
-- ROC-AUC Curve
-- Feature Importance Analysis
-
----
-
-## 📈 Future Enhancements
-
-- [ ] Incorporate **real-time weather data** from race weekends
-- [ ] Add **driver-specific performance trends** (form over last 5 races)
-- [ ] Implement **neural network** for comparison with tree-based models
-- [ ] Extend predictions to **podium finishes** and **race winners**
-- [ ] Deploy model to **cloud platform** (AWS, Heroku, or Streamlit Cloud)
-- [ ] Create **REST API** for programmatic predictions
-
----
-
-## 📝 Lessons Learned
-
-- **Domain knowledge matters:** Understanding F1 regulations (grid penalties, DNFs) improved feature engineering
-- **Qualifying position is king:** Despite 15+ features, qualifying position alone explains 43% of variance
-- **Tree-based models excel:** Random Forest handled non-linear relationships better than linear models
-- **Data quality > quantity:** 400 high-quality records outperformed 2000+ noisy historical records
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/OliverPerrin/f1-race-predictor/issues).
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-This project is licensed under the GNU GPL-3.0 License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Author
-
-**Oliver Perrin**
-- GitHub: [@OliverPerrin](https://github.com/OliverPerrin)
-- LinkedIn: [Connect with me](https://linkedin.com/in/oliverperrin)
-- Portfolio: [oliverperrin.com](https://oliverperrin.com)
-
----
-
-## 🙏 Acknowledgments
-
-- **FastF1** team for the excellent F1 data API
-- **Ergast Developer API** for historical F1 data
-- **Formula 1** for inspiring this project through incredible racing
-- **scikit-learn** community for comprehensive ML tools
-
----
-
-## 📞 Contact
-
-Questions or suggestions? Feel free to reach out!
-
-- **Email:** your.email@example.com
-- **Twitter:** [@FrontR6](https://twitter.com/frontr6)
-
----
-
-<p align="center">
-  <img src="https://img.shields.io/github/stars/OliverPerrin/f1-race-predictor?style=social" alt="GitHub stars">
-  <img src="https://img.shields.io/github/forks/OliverPerrin/f1-race-predictor?style=social" alt="GitHub forks">
-</p>
