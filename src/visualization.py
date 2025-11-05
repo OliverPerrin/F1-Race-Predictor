@@ -13,7 +13,7 @@ import streamlit as st
 from matplotlib import pyplot as plt
 
 # Configure Streamlit up front so the page always opens with the same look and feel.
-st.set_page_config(page_title="F1 Qualifying Predictor", layout="wide")
+st.set_page_config(page_title="F1 Race Predictor", layout="wide")
 # Adopt a clean seaborn theme so every chart is readable by default.
 sns.set_theme(style="whitegrid")
 
