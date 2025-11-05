@@ -272,7 +272,7 @@ if filtered_df.empty:
 # Build the same numeric feature set the models expect before calling `.predict`
 features = build_feature_matrix(filtered_df)
 
-st.title("🏎️ F1 Qualifying Predictor Dashboard")
+st.title("🏎️ F1 Race Predictor Dashboard")
 st.caption(
     "Slice past weekends or assemble an upcoming scenario to see how the models rate every driver."
 )
