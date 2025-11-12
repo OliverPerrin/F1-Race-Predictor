@@ -12,7 +12,27 @@ import seaborn as sns
 import streamlit as st
 from matplotlib import pyplot as plt
 
+try:
+    import fastf1  # type: ignore
+except Exception:  # pragma: no cover - FastF1 may be unavailable on some deployments
+    fastf1 = None
+
 # Configure Streamlit up front so the page always opens with the same look and feel.
+
+@st.cache_data(show_spinner=False)
+def load_event_schedule(year: int) -> pd.DataFrame:
+    """Fetch the FIA event schedule for a given season if FastF1 is available."""
+    if fastf1 is None:
+        raise RuntimeError("FastF1 is not installed in this environment.")
+
+    schedule = fastf1.get_event_schedule(year)
+    event_format = schedule.get("EventFormat")
+    if event_format is not None:
+        schedule = schedule[event_format != "testing"].copy()
+    else:
+        schedule = schedule.copy()
+    return schedule
+
 st.set_page_config(page_title="F1 Race Predictor", layout="wide")
 # Adopt a clean seaborn theme so every chart is readable by default.
 sns.set_theme(style="whitegrid")
@@ -64,6 +84,7 @@ def create_upcoming_dataset(
     upcoming_year: int,
     upcoming_race: str,
     lookback: int,
+    upcoming_round: int | None = None,
 ) -> pd.DataFrame:
     """Average the recent form for each driver to project a future qualifying weekend."""
     candidate_years = set(candidate_years)
@@ -74,6 +95,8 @@ def create_upcoming_dataset(
     ]
 
     scenario_rows = []
+            # Schedule helper to be inserted here in the next patch
+
     # Ensure we can grab the most recent races per driver after filtering
     sorted_history = history_df.sort_values(["DriverNumber", "Year", "RoundNumber"])
     for driver_number, driver_history in sorted_history.groupby("DriverNumber"):
@@ -93,7 +116,9 @@ def create_upcoming_dataset(
         latest_row["Year"] = upcoming_year
         latest_row["RaceName"] = upcoming_race
         if "RoundNumber" in latest_row:
-            if recent["RoundNumber"].notna().any():
+            if upcoming_round is not None:
+                latest_row["RoundNumber"] = int(upcoming_round)
+            elif recent["RoundNumber"].notna().any():
                 latest_row["RoundNumber"] = int(recent["RoundNumber"].dropna().max()) + 1
             else:
                 latest_row["RoundNumber"] = 1
@@ -249,11 +274,78 @@ else:
         value=upcoming_year_default,
         help="Enter the season you want to project (e.g. 2025).",
     )
-    upcoming_race = st.sidebar.text_input(
-        "Upcoming race name",
-        value="Sao Paulo Grand Prix",
-        help="Name the next race weekend so it is clearly labelled in the dashboard.",
+    schedule_df = pd.DataFrame()
+    schedule_warning: str | None = None
+    if fastf1 is not None:
+        try:
+            schedule_df = load_event_schedule(int(upcoming_year))
+        except Exception as exc:  # pragma: no cover - defensive against remote API issues
+            schedule_warning = str(exc)
+    else:
+        schedule_warning = "FastF1 package is unavailable; enter upcoming races manually."
+
+    completed_round = (
+        history_df[
+            (history_df["Year"] == upcoming_year) & history_df["Position"].notna()
+        ]["RoundNumber"].max()
     )
+    completed_round = int(completed_round) if pd.notna(completed_round) else 0
+
+    race_options: list[str] = []
+    race_round_map: dict[str, int] = {}
+    if not schedule_df.empty and {"EventName", "RoundNumber"}.issubset(schedule_df.columns):
+        remaining = schedule_df[schedule_df["RoundNumber"] > completed_round]
+        if remaining.empty:
+            remaining = schedule_df
+        race_options = remaining["EventName"].astype(str).tolist()
+        race_round_map = {
+            str(row.EventName): int(row.RoundNumber)
+            for row in remaining.itertuples()
+            if pd.notna(row.RoundNumber)
+        }
+    if schedule_warning and not race_options:
+        st.sidebar.caption(schedule_warning)
+
+    custom_label = "Custom entry"
+    upcoming_race: str
+    upcoming_round: int
+    if race_options:
+        race_selection = st.sidebar.selectbox(
+            "Upcoming race",
+            options=race_options + [custom_label],
+            index=0,
+            help="Pick any remaining event this season or choose custom to simulate another scenario.",
+        )
+        if race_selection == custom_label:
+            default_label = race_options[0] if race_options else "Upcoming Grand Prix"
+            upcoming_race = st.sidebar.text_input(
+                "Race name",
+                value=default_label,
+                help="Name the race so predictions are clearly labelled.",
+            )
+            upcoming_round = st.sidebar.number_input(
+                "Projected round number",
+                min_value=1,
+                max_value=50,
+                value=max(completed_round + 1, 1),
+                help="Adjust if you want to model events further into the future.",
+            )
+        else:
+            upcoming_race = race_selection
+            upcoming_round = race_round_map.get(race_selection, max(completed_round + 1, 1))
+    else:
+        upcoming_race = st.sidebar.text_input(
+            "Race name",
+            value="Upcoming Grand Prix",
+            help="Name the race so predictions are clearly labelled.",
+        )
+        upcoming_round = st.sidebar.number_input(
+            "Projected round number",
+            min_value=1,
+            max_value=50,
+            value=max(completed_round + 1, 1),
+            help="Adjust if you want to model events further into the future.",
+        )
     lookback = st.sidebar.slider(
         "Number of recent rounds to average",
         min_value=1,
@@ -261,7 +353,14 @@ else:
         value=3,
         help="The model will average this many recent results per driver to craft the scenario.",
     )
-    filtered_df = create_upcoming_dataset(history_df, selected_years, upcoming_year, upcoming_race, lookback)
+    filtered_df = create_upcoming_dataset(
+        history_df,
+        selected_years,
+        upcoming_year,
+        upcoming_race,
+        lookback,
+        upcoming_round=upcoming_round,
+    )
 
 if filtered_df.empty:
     st.warning("No rows match the current selections. Try broadening the filters.")
