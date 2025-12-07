@@ -41,6 +41,7 @@ BASE_DIR = os.path.dirname(__file__)
 SAMPLE_DATA_DIR = os.path.join(BASE_DIR, "sample_data")
 FALLBACK_DATA_PATH = os.path.join(SAMPLE_DATA_DIR, "processed_data.csv")
 FALLBACK_RESULTS_PATH = os.path.join(SAMPLE_DATA_DIR, "results.csv")
+MAX_ROUNDS_PER_SEASON = 24
 
 
 # --------- Cached helpers ---------
@@ -229,6 +230,11 @@ top10_model = load_model(os.path.join(PREDICTIONS_DIR, "top10_classifier.pkl"))
 st.sidebar.header("Filter and simulate weekends")
 
 available_years = sorted(df["Year"].unique())
+latest_year_in_data = max(available_years) if available_years else 2025
+latest_completed_round = (
+    df[(df["Year"] == latest_year_in_data) & df["Position"].notna()]["RoundNumber"].max()
+)
+season_complete = bool(pd.notna(latest_completed_round) and int(latest_completed_round) >= MAX_ROUNDS_PER_SEASON)
 default_years = available_years[-2:] if len(available_years) >= 2 else available_years
 selected_years = st.sidebar.multiselect(
     "Seasons",
@@ -264,8 +270,11 @@ if mode == "Historical weekends":
     if future_only:
         filtered_df = filtered_df[filtered_df["Position"].isna()]
 else:
-    # Default to the season after the most recent data so you can plan next year (e.g., 2026 Round 1)
-    upcoming_year_default = max(available_years) + 1 if available_years else 2025
+    # Default to next round of current season; if season finished, jump to next year Round 1
+    if season_complete:
+        upcoming_year_default = latest_year_in_data + 1
+    else:
+        upcoming_year_default = latest_year_in_data
     upcoming_year = st.sidebar.number_input(
         "Upcoming season",
         min_value=2000,
@@ -284,11 +293,10 @@ else:
         schedule_warning = "FastF1 package is unavailable; enter upcoming races manually."
 
     completed_round = (
-        history_df[
-            (history_df["Year"] == upcoming_year) & history_df["Position"].notna()
-        ]["RoundNumber"].max()
+        df[(df["Year"] == upcoming_year) & df["Position"].notna()]["RoundNumber"].max()
     )
     completed_round = int(completed_round) if pd.notna(completed_round) else 0
+    completed_round = min(completed_round, MAX_ROUNDS_PER_SEASON)
 
     race_options: list[str] = []
     race_round_map: dict[str, int] = {}
@@ -309,10 +317,12 @@ else:
     upcoming_race: str
     upcoming_round: int
     if race_options:
+        # Default to the next scheduled event; if season complete, fall back to custom entry
+        default_index = 0 if not season_complete else len(race_options)
         race_selection = st.sidebar.selectbox(
             "Upcoming race",
             options=race_options + [custom_label],
-            index=len(race_options),  # default to custom entry so the text box is ready
+            index=default_index,
             help="Pick any remaining event this season or choose custom to simulate another scenario.",
         )
         if race_selection == custom_label:
@@ -325,24 +335,30 @@ else:
             upcoming_round = st.sidebar.number_input(
                 "Projected round number",
                 min_value=1,
-                max_value=50,
-                value=max(completed_round + 1, 1),
+                max_value=MAX_ROUNDS_PER_SEASON,
+                value=max(min(completed_round + 1, MAX_ROUNDS_PER_SEASON), 1),
                 help="Adjust if you want to model events further into the future (e.g., Round 1 Australia 2026).",
             )
         else:
             upcoming_race = race_selection
-            upcoming_round = race_round_map.get(race_selection, max(completed_round + 1, 1))
+            upcoming_round = min(
+                race_round_map.get(race_selection, max(completed_round + 1, 1)),
+                MAX_ROUNDS_PER_SEASON,
+            )
     else:
+        # Season complete or no schedule available; default to next season opener
+        default_label = "Australian Grand Prix" if season_complete else "Upcoming Grand Prix"
         upcoming_race = st.sidebar.text_input(
             "Race name",
-            value="Upcoming Grand Prix",
+            value=default_label,
             help="Name the race so predictions are clearly labelled.",
         )
+        default_round_value = 1 if season_complete else max(completed_round + 1, 1)
         upcoming_round = st.sidebar.number_input(
             "Projected round number",
             min_value=1,
-            max_value=50,
-            value=max(completed_round + 1, 1),
+            max_value=MAX_ROUNDS_PER_SEASON,
+            value=min(default_round_value, MAX_ROUNDS_PER_SEASON),
             help="Adjust if you want to model events further into the future (e.g., Round 1 Australia 2026).",
         )
     lookback = st.sidebar.slider(
