@@ -46,8 +46,11 @@ MAX_ROUNDS_PER_SEASON = 24
 
 # --------- Cached helpers ---------
 @st.cache_data(show_spinner=True)
-def load_dataset(path: str) -> pd.DataFrame:
-    """Read the processed dataset from disk (cached for snappy reloads)."""
+def load_dataset(path: str, mtime: float) -> pd.DataFrame:
+    """Read the processed dataset from disk (cached for snappy reloads).
+
+    The mtime parameter ensures the cache invalidates when the file changes.
+    """
     return pd.read_csv(path)
 
 
@@ -146,8 +149,11 @@ def derive_driver_labels(df: pd.DataFrame) -> pd.Series:
 
 
 @st.cache_data(show_spinner=True)
-def load_prediction_results(path: str | None) -> pd.DataFrame:
-    """Load stored model predictions for computing offline diagnostics."""
+def load_prediction_results(path: str | None, mtime: float | None) -> pd.DataFrame:
+    """Load stored model predictions for computing offline diagnostics.
+
+    The mtime parameter ensures the cache invalidates when the file changes.
+    """
     if path and os.path.exists(path):
         return pd.read_csv(path)
     return pd.DataFrame(columns=["target", "actual", "predicted"])
@@ -214,7 +220,8 @@ except FileNotFoundError:
     )
     st.stop()
 
-df = load_dataset(dataset_path)
+dataset_mtime = os.path.getmtime(dataset_path)
+df = load_dataset(dataset_path, dataset_mtime)
 if used_fallback_dataset:
     st.info(
         "Bundled sample dataset loaded (streamlit cloud fallback). Regenerate `data/processed/processed_data.csv` "
@@ -570,7 +577,8 @@ st.header("Model insights")
 results_path, used_fallback_results = resolve_existing_path(
     RESULTS_PATH, FALLBACK_RESULTS_PATH, required=False
 )
-results_df = load_prediction_results(results_path)
+results_mtime = os.path.getmtime(results_path) if results_path and os.path.exists(results_path) else None
+results_df = load_prediction_results(results_path, results_mtime)
 
 if used_fallback_results and not results_df.empty:
     st.caption(
