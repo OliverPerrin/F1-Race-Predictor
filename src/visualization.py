@@ -95,8 +95,6 @@ def create_upcoming_dataset(
     ]
 
     scenario_rows = []
-            # Schedule helper to be inserted here in the next patch
-
     # Ensure we can grab the most recent races per driver after filtering
     sorted_history = history_df.sort_values(["DriverNumber", "Year", "RoundNumber"])
     for driver_number, driver_history in sorted_history.groupby("DriverNumber"):
@@ -266,7 +264,8 @@ if mode == "Historical weekends":
     if future_only:
         filtered_df = filtered_df[filtered_df["Position"].isna()]
 else:
-    upcoming_year_default = max(available_years) if available_years else 2025
+    # Default to the season after the most recent data so you can plan next year (e.g., 2026 Round 1)
+    upcoming_year_default = max(available_years) + 1 if available_years else 2025
     upcoming_year = st.sidebar.number_input(
         "Upcoming season",
         min_value=2000,
@@ -313,7 +312,7 @@ else:
         race_selection = st.sidebar.selectbox(
             "Upcoming race",
             options=race_options + [custom_label],
-            index=0,
+            index=len(race_options),  # default to custom entry so the text box is ready
             help="Pick any remaining event this season or choose custom to simulate another scenario.",
         )
         if race_selection == custom_label:
@@ -328,7 +327,7 @@ else:
                 min_value=1,
                 max_value=50,
                 value=max(completed_round + 1, 1),
-                help="Adjust if you want to model events further into the future.",
+                help="Adjust if you want to model events further into the future (e.g., Round 1 Australia 2026).",
             )
         else:
             upcoming_race = race_selection
@@ -344,7 +343,7 @@ else:
             min_value=1,
             max_value=50,
             value=max(completed_round + 1, 1),
-            help="Adjust if you want to model events further into the future.",
+            help="Adjust if you want to model events further into the future (e.g., Round 1 Australia 2026).",
         )
     lookback = st.sidebar.slider(
         "Number of recent rounds to average",
