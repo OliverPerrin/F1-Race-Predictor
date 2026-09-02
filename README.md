@@ -99,8 +99,7 @@ The app includes three main areas:
 Issues, ideas, and pull requests are welcome. Please open a discussion or PR if you would like to extend the models, add new visualisations, or integrate additional data sources.
 
 ## License
-This project is distributed under the terms of the GNU GPL-3.0 license. See `LICENSE` for details.
+This project is distributed under the terms of the MIT License. See `LICENSE` for details.
 
 ## Contact
 Created by [Oliver Perrin](https://github.com/OliverPerrin). For questions or collaboration, feel free to reach out on GitHub or LinkedIn.
-
