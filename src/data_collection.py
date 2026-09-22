@@ -2,7 +2,7 @@
 F1 Race Predictor - Data Collection Module
 
 This module fetches Formula 1 data from the FastF1 API.
-Collects race results, qualifying data, and championship standings for the 2024-2025 seasons.
+Collects race results, qualifying data, and championship standings from 2024 through the current season.
 
 Author: Oliver Perrin
 Date: 2025-11-03
@@ -35,13 +35,13 @@ os.makedirs(RAW_DATA_DIR, exist_ok=True)
 class F1DataCollector:
     """Collects F1 data from FastF1."""
     
-    def __init__(self, years=[2024, 2025]):
+    def __init__(self, years=None):
         """
         Initialize the data collector.
         Args:
             years (list): List of years to collect data for
         """
-        self.years = years
+        self.years = list(years) if years is not None else list(range(2024, datetime.now().year + 1))
         retry_config = Retry(
             total=3,
             connect=3,
@@ -78,23 +78,23 @@ class F1DataCollector:
             for index, race in races.iterrows():
                 race_name = race['EventName']
                 round_number = race['RoundNumber']
-                race_date = race.get('Session4Date', race.get('EventDate'))
+                race_date = race.get('Session5DateUtc', race.get('EventDate'))
                 if pd.notna(race_date):
                     race_date = pd.to_datetime(race_date)
                     if race_date.tzinfo is None:
                         race_date = race_date.tz_localize('UTC')
                     else:
                         race_date = race_date.tz_convert('UTC')
-                    if race_date > now_utc + pd.Timedelta(days=1):
+                    if race_date > now_utc:
                         print(f" Skipping {race_name} (scheduled for {race_date.date()})")
                         continue
                 print(f" Loading {race_name} (Round {round_number})...")
                 
                 session = fastf1.get_session(year, int(round_number), 'R')
-                session.load()
+                session.load(laps=False, telemetry=False, weather=False, messages=False)
                 
                 results = session.results
-                if results is None or results.empty:
+                if results is None or results.empty or not results["Position"].notna().any():
                     print(f" No race results data for {race_name}; skipping")
                     continue
                 results['Year'] = year
@@ -137,25 +137,25 @@ class F1DataCollector:
             for index, event in races.iterrows():
                 race_name = event['EventName']
                 round_number = event['RoundNumber']
-                quali_date = event.get('Session3Date', event.get('EventDate'))
+                quali_date = next((event.get(f'Session{i}DateUtc') for i in range(1, 6) if event.get(f'Session{i}') == 'Qualifying'), event.get('EventDate'))
                 if pd.notna(quali_date):
                     quali_date = pd.to_datetime(quali_date)
                     if quali_date.tzinfo is None:
                         quali_date = quali_date.tz_localize('UTC')
                     else:
                         quali_date = quali_date.tz_convert('UTC')
-                    if quali_date > now_utc + pd.Timedelta(days=1):
+                    if quali_date > now_utc:
                         print(f" Skipping {race_name} qualifying (scheduled for {quali_date.date()})")
                         continue
                     
                 print(f" Loading {race_name} (Round {round_number})...")
             
                 session = fastf1.get_session(year, int(round_number), 'Q')
-                session.load()
+                session.load(laps=False, telemetry=False, weather=False, messages=False)
                     
                 # Get qualifying results
                 results = session.results
-                if results is None or results.empty:
+                if results is None or results.empty or not results["Position"].notna().any():
                     print(f" No qualifying results data for {race_name}; skipping")
                     continue
                         
@@ -187,6 +187,11 @@ class F1DataCollector:
             race_df: DataFrame with race results
             quali_df: DataFrame with qualifying results
         """
+        for label, frame in [("race", race_df), ("qualifying", quali_df)]:
+            if frame.empty:
+                raise ValueError(f"No {label} data collected; refusing to replace the existing dataset.")
+            if frame.duplicated(["Year", "RoundNumber", "DriverNumber"]).any():
+                raise ValueError(f"Duplicate {label} results; refusing to save.")
         print("\nSaving data to files...")
         
         
@@ -224,7 +229,7 @@ def main():
     print("=" * 60)
     
     # Initialize collector
-    collector = F1DataCollector(years=[2024, 2025])
+    collector = F1DataCollector()
     
     # Collect all data
     race_results = collector.collect_race_results()

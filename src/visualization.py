@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Iterable
 
 import joblib
@@ -19,7 +20,7 @@ except Exception:  # pragma: no cover - FastF1 may be unavailable on some deploy
 
 # Configure Streamlit up front so the page always opens with the same look and feel.
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_event_schedule(year: int) -> pd.DataFrame:
     """Fetch the FIA event schedule for a given season if FastF1 is available."""
     if fastf1 is None:
@@ -55,8 +56,8 @@ def load_dataset(path: str, mtime: float) -> pd.DataFrame:
 
 
 @st.cache_resource(show_spinner=True)
-def load_model(path: str):
-    """Load a persisted sklearn model if it exists on disk."""
+def load_model(path: str, mtime: float | None):
+    """Load a persisted model, invalidating the cache when its file changes."""
     if os.path.exists(path):
         return joblib.load(path)
     return None
@@ -100,8 +101,17 @@ def create_upcoming_dataset(
 
     scenario_rows = []
     # Ensure we can grab the most recent races per driver after filtering
-    sorted_history = history_df.sort_values(["DriverNumber", "Year", "RoundNumber"])
-    for driver_number, driver_history in sorted_history.groupby("DriverNumber"):
+    sorted_history = history_df.sort_values(["Year", "RoundNumber"])
+    eligible = sorted_history[sorted_history["Year"].isin(candidate_years)] if candidate_years else sorted_history
+    if eligible.empty:
+        return pd.DataFrame()
+    latest = eligible.iloc[-1]
+    roster = eligible[(eligible["Year"] == latest["Year"]) & (eligible["RoundNumber"] == latest["RoundNumber"])]
+    # Driver numbers can change between seasons; use the stable driver abbreviation.
+    active_drivers = set(roster["Abbreviation"])
+    for driver_id, driver_history in sorted_history.groupby("Abbreviation"):
+        if driver_id not in active_drivers:
+            continue
         trimmed = (
             driver_history[driver_history["Year"].isin(candidate_years)]
             if candidate_years
@@ -223,14 +233,15 @@ except FileNotFoundError:
 dataset_mtime = os.path.getmtime(dataset_path)
 df = load_dataset(dataset_path, dataset_mtime)
 if used_fallback_dataset:
-    st.info(
-        "Bundled sample dataset loaded (streamlit cloud fallback). Regenerate `data/processed/processed_data.csv` "
-        "for the latest results."
-    )
+    st.caption("Using the bundled dataset from the latest deployment.")
 
-position_model = load_model(os.path.join(PREDICTIONS_DIR, "position_regressor.pkl"))
-q3_model = load_model(os.path.join(PREDICTIONS_DIR, "q3_classifier.pkl"))
-top10_model = load_model(os.path.join(PREDICTIONS_DIR, "top10_classifier.pkl"))
+model_paths = [os.path.join(PREDICTIONS_DIR, filename) for filename in (
+    "position_regressor.pkl", "q3_classifier.pkl", "top10_classifier.pkl"
+)]
+position_model, q3_model, top10_model = [
+    load_model(path, os.path.getmtime(path) if os.path.exists(path) else None)
+    for path in model_paths
+]
 
 
 # --------- Sidebar controls ---------
@@ -394,6 +405,15 @@ if filtered_df.empty:
 features = build_feature_matrix(filtered_df)
 
 st.title("🏎️ F1 Race Predictor Dashboard")
+metadata_path = os.path.join(SAMPLE_DATA_DIR, "metadata.json")
+if os.path.exists(metadata_path):
+    with open(metadata_path) as metadata_file:
+        data_metadata = json.load(metadata_file)
+    st.caption(
+        f"Data refreshed {data_metadata['collection_date'][:10]} · "
+        f"Latest qualifying: {data_metadata['latest_year']} "
+        f"{data_metadata['latest_race']} (round {data_metadata['latest_round']})"
+    )
 st.caption(
     "Slice past weekends or assemble an upcoming scenario to see how the models rate every driver."
 )
@@ -456,7 +476,7 @@ if position_model is not None:
         else pd.Series(dtype=float)
     )
     write_prediction_section(
-        "Predicted finishing positions",
+        "Predicted qualifying positions",
         predicted_positions,
         extra_columns.assign(ActualPosition=actual_positions),
     )
@@ -519,7 +539,7 @@ st.header("Trend highlights")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("**Average predicted finishing position by team**")
+    st.markdown("**Average predicted qualifying position by team**")
     if predicted_positions is not None:
         team_source = pd.concat(
             [extra_columns.reset_index(drop=True), predicted_positions.reset_index(drop=True)],
@@ -582,7 +602,7 @@ results_df = load_prediction_results(results_path, results_mtime)
 
 if used_fallback_results and not results_df.empty:
     st.caption(
-        "Bundled sample prediction metrics loaded. Train locally and redeploy to refresh model diagnostics."
+        "Diagnostics from the model evaluation bundled with this deployment."
     )
 
 if results_df.empty:
@@ -612,7 +632,7 @@ else:
                 st.info("Valid regression records were not found in the stored results.")
             else:
                 reg_metrics = calculate_regression_metrics(regression_df)
-                metric_display = pd.DataFrame([reg_metrics]).applymap(
+                metric_display = pd.DataFrame([reg_metrics]).map(
                     lambda x: f"{x:.3f}" if isinstance(x, (int, float)) and pd.notna(x) else x
                 )
                 st.subheader("Error summary")
@@ -663,7 +683,7 @@ else:
                 metric_display = pd.DataFrame([q3_metrics])
                 metric_display[["Accuracy", "Precision", "Recall", "F1 Score"]] = metric_display[
                     ["Accuracy", "Precision", "Recall", "F1 Score"]
-                ].applymap(lambda x: f"{x:.3f}")
+                ].map(lambda x: f"{x:.3f}")
                 st.subheader("Classification summary")
                 st.dataframe(metric_display, width="stretch", hide_index=True)
 
@@ -698,7 +718,7 @@ else:
                 metric_display = pd.DataFrame([top10_metrics])
                 metric_display[["Accuracy", "Precision", "Recall", "F1 Score"]] = metric_display[
                     ["Accuracy", "Precision", "Recall", "F1 Score"]
-                ].applymap(lambda x: f"{x:.3f}")
+                ].map(lambda x: f"{x:.3f}")
                 st.subheader("Classification summary")
                 st.dataframe(metric_display, width="stretch", hide_index=True)
 

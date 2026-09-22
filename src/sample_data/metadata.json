@@ -1,0 +1,16 @@
+{
+  "collection_date": "2026-09-22 12:20:39",
+  "years": [
+    2024,
+    2025,
+    2026
+  ],
+  "races_collected": 1266,
+  "qualifying_collected": 1267,
+  "latest_year": 2026,
+  "latest_round": 14,
+  "latest_race": "Spanish Grand Prix",
+  "processed_rows": 1267,
+  "sklearn_version": "1.9.1",
+  "source": "FastF1 / Jolpica-F1"
+}

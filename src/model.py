@@ -64,7 +64,7 @@ def train_classification(
 def main() -> None:
     os.makedirs(PREDICTIONS_DIR, exist_ok=True)
     # Load the preprocessed dataset that already encodes categorical features
-    df = load_dataset(DATA_PATH)
+    df = load_dataset(DATA_PATH).dropna(subset=["y_position"])
 
     target_columns = [col for col in ["y_position", "y_q3"] if col in df.columns]
     # Mirror the training features we used during experimentation
@@ -74,7 +74,7 @@ def main() -> None:
     # Fit the qualifying position regressor on historical data
     reg_model, reg_metrics, y_test_pos, reg_predictions = train_regression(X, y_position)
     print(
-        "Regression — Finishing Position\n"
+        "Regression — Qualifying Position\n"
         f"MAE: {reg_metrics['mae']:.3f}, R²: {reg_metrics['r2']:.3f}"
     )
     # Persist the trained estimator so the Streamlit app can reuse it

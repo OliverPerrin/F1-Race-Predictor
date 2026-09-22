@@ -37,7 +37,9 @@ original_columns = {
     "Location": quali_df.get("Location"),
 }
 
-quali_df = quali_df.fillna(quali_df.mean(numeric_only=True))
+# Missing classifications are unknown targets, not average grid positions.
+feature_means = quali_df.drop(columns=["Position"], errors="ignore").mean(numeric_only=True)
+quali_df = quali_df.fillna(feature_means)
 
 quali_df["BestLap"] = quali_df[["Q1", "Q2", "Q3"]].min(axis=1)
 quali_df["AvgLap"] = quali_df[["Q1", "Q2", "Q3"]].mean(axis=1)
