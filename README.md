@@ -1,114 +1,86 @@
-# F1 Race Predictor
+<h1 align="center">F1 Race Predictor</h1>
 
-[![Streamlit App](https://img.shields.io/badge/Live%20Demo-Streamlit-blue?logo=streamlit)](https://f1-race-predictor-oliverperrin.streamlit.app)
+<p align="center">Analyse Formula 1 qualifying sessions and estimate grid positions with classical machine learning.</p>
 
-An end-to-end workflow for analysing Formula 1 qualifying sessions, training machine-learning models, and presenting the results through an interactive Streamlit dashboard. The project pulls recent race data with FastF1, prepares a modelling dataset, trains regressors/classifiers, and surfaces the outputs in a way that is easy to demo.
+<p align="center">
+  <a href="https://f1-race-predictor-oliverperrin.streamlit.app"><strong>Live dashboard</strong></a>
+</p>
 
-## Project Overview
-- Processes qualifying and race results for recent F1 seasons using FastF1 and Jolpica-F1 data.
-- Builds a clean feature set covering lap times, session deltas, team and driver context, and engineered targets.
-- Trains three models:
-  - Random Forest regressor to estimate qualifying position.
-  - Logistic regression to predict who reaches Q3.
-  - Logistic regression to predict top-ten qualifiers.
-- Ships a Streamlit application (`src/visualization.py`) for slicing historic weekends, simulating upcoming rounds, and reviewing model diagnostics.
+<p align="center">
+  <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11+-3776ab?style=flat-square" />
+  <img alt="scikit-learn" src="https://img.shields.io/badge/scikit--learn-1.9-f7931e?style=flat-square" />
+  <img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-dashboard-ff4b4b?style=flat-square" />
+</p>
 
-## Highlights
-- **Scenario planning:** simulate an upcoming weekend by averaging each driver's recent form and generating fresh predictions.
-- **Model insights:** review scatter plots, residual distributions, and confusion matrices directly inside the dashboard.
-- **Offline artefacts:** every training run serialises the models and stores test-set predictions so the analytics can be shared without re-training.
+---
 
-## Data freshness and evaluation
-Refreshed on **22 September 2026** using FastF1 / Jolpica-F1. The bundled dataset contains **1,267 qualifying entries across 62 weekends** from 2024–2026, through **round 14, the Spanish Grand Prix (13 September 2026)**. Missing official qualifying positions remain unknown and are excluded from training; 1,261 classified entries are used.
+### What it is
 
-Metrics below use the regenerated random 20% hold-out (253 samples per model). These models use qualifying-session times, so the metrics describe retrospective qualifying analysis; they do not establish pre-race forecasting accuracy. Upcoming scenarios extrapolate recent form.
+A small end-to-end project: it collects qualifying and race data with FastF1, builds features, trains three models and presents the results in a Streamlit dashboard.
+
+| Model | Predicts |
+| --- | --- |
+| Random forest regressor | Qualifying position |
+| Logistic regression | Whether a driver reaches Q3 |
+| Logistic regression | Whether a driver qualifies in the top ten |
+
+The dashboard has three views: historic weekends, a simulation of an upcoming weekend based on each driver's recent form, and model diagnostics. The hosted dashboard sleeps when idle and takes a moment to wake.
+
+### Results
+
+Data was last refreshed on 22 September 2026: 1,267 qualifying entries across 62 weekends from 2024 to 2026, up to round 14, the Spanish Grand Prix. Scores are from a random 20% hold-out of 253 samples per model.
 
 | Target | Metric | Score |
-| ------ | ------ | ----- |
-| Position regression | Mean absolute error | 1.74 grid places |
-| Position regression | Root mean squared error | 2.09 grid places |
-| Position regression | Mean bias (predicted - actual) | -0.27 |
-| Q3 classification | Accuracy | 87.4% |
-| Q3 classification | Precision | 81.2% |
-| Q3 classification | Recall | 96.8% |
-| Q3 classification | F1 score | 88.3% |
-| Top-ten classification | Accuracy | 88.5% |
-| Top-ten classification | Precision | 84.0% |
-| Top-ten classification | Recall | 96.2% |
-| Top-ten classification | F1 score | 89.7% |
+| --- | --- | --- |
+| Position | Mean absolute error | 1.74 grid places |
+| Position | Root mean squared error | 2.09 grid places |
+| Reaches Q3 | Accuracy / precision / recall | 87.4% / 81.2% / 96.8% |
+| Top ten | Accuracy / precision / recall | 88.5% / 84.0% / 96.2% |
 
-## Tech Stack
-- **Python 3.11+**
-- **Data & ML:** pandas, numpy, scikit-learn, joblib
-- **Data ingestion:** FastF1, Jolpica-F1
-- **Visualisation & UI:** Streamlit, seaborn, matplotlib
+**Limit:** the models use lap times from the qualifying session itself, so these scores describe analysis after the session. They are not a measure of how well the project forecasts a session before it happens.
 
-## Getting Started
-### Prerequisites
-- Python 3.11+
-- pip
-- (Optional) virtual environment tool such as `venv` or `conda`
+### Quick start
 
-### Installation
 ```bash
-# Clone the project
-
+git clone https://github.com/OliverPerrin/F1-Race-Predictor.git
 cd F1-Race-Predictor
-
-# Create and activate a virtual environment (optional but recommended)
 python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+streamlit run src/visualization.py
 ```
 
-### Refresh and redeploy
+The repository includes a processed dataset and trained models, so the dashboard runs without collecting data first.
+
+### Retrain from fresh data
+
 ```bash
 python tools/update_assets.py --full
 python -m unittest discover -s tests -v
 ```
-The collector includes every season from 2024 through the current year and skips future sessions. The refresh rebuilds all three models, evaluation results, bundled data and freshness metadata. Commit `data/predictions/` and `src/sample_data/` together with any code or dependency changes, then push `main` to update the existing Streamlit Community Cloud app (`src/visualization.py`). Verify the refresh date on the live dashboard. The scikit-learn version is pinned to the version used to serialize the models.
 
-### Typical Workflow
-1. **Collect fresh data** (optional if `data/raw` already exists):
-   ```bash
-   python src/data_collection.py
-   ```
-2. **Preprocess and engineer features:**
-   ```bash
-   python src/preprocessing.py
-   ```
-3. **Train the models and generate metrics:**
-   ```bash
-   python src/model.py
-   ```
-   - Saves trained models to `data/predictions/`.
-   - Writes hold-out predictions to `data/predictions/results.csv` for later analysis.
-4. **Launch the dashboard:** see next section.
+This collects every season from 2024 to the current year, rebuilds the three models and rewrites the bundled data and evaluation results. To run the steps separately:
 
-## Using the Streamlit Dashboard
 ```bash
-streamlit run src/visualization.py
+python src/data_collection.py   # download sessions with FastF1
+python src/preprocessing.py     # build the feature table
+python src/model.py             # train and evaluate
 ```
-The app includes three main areas:
-- **Historic weekends:** filter by season and race, review predicted qualifying order, and inspect probabilities for Q3 / top-ten appearances.
-- **Upcoming weekend simulation:** specify a future race, choose a look-back window, and the app will estimate results based on each driver's recent form.
-- **Model insights tab:** compare actual vs predicted positions, explore residual distributions, and inspect confusion matrices for the classifiers.
 
-## Repository Components
-- `src/data_collection.py` – pulls race and qualifying sessions via FastF1 with retry logic and caching.
-- `src/preprocessing.py` – merges raw data, converts time columns, creates engineered targets, and outputs `data/processed/processed_data.csv`.
-- `src/model.py` – trains the regression/classification models and stores artefacts/metrics.
-- `src/visualization.py` – Streamlit dashboard powering the interactive experience.
-- `data/` – raw downloads, processed dataset, and prediction artefacts.
-- `results/` – generated metrics or additional analyses.
+### Layout
 
-## Contributing
-Issues, ideas, and pull requests are welcome. Please open a discussion or PR if you would like to extend the models, add new visualisations, or integrate additional data sources.
+```text
+src/data_collection.py   Downloads race and qualifying sessions, with caching and retries
+src/preprocessing.py     Merges raw data and builds features and targets
+src/model.py             Trains and evaluates the three models
+src/visualization.py     Streamlit dashboard
+src/sample_data/         Bundled dataset and hold-out predictions
+data/predictions/        Trained models
+tools/update_assets.py   One-command refresh
+tests/                   Dashboard and refresh checks
+```
 
-## License
-This project is distributed under the terms of the MIT License. See `LICENSE` for details.
+### Licence
 
-## Contact
-Created by [Oliver Perrin](https://github.com/OliverPerrin). For questions or collaboration, feel free to reach out on GitHub or LinkedIn.
+[MIT licensed](LICENSE). Data comes from [FastF1](https://github.com/theOehrly/Fast-F1) and [Jolpica-F1](https://github.com/jolpica/jolpica-f1). Built by [Oliver Perrin](https://github.com/OliverPerrin) as a learning project in classical machine learning.
